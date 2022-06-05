@@ -1,0 +1,235 @@
+---
+title: "Project 2D Final"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+INTRODUCTION:
+Summary:
+Angiogenesis refers to the formation of blood vessels that promote cancerous cell growth and migration. In humans, VEGF promotes angiogenesis while thrombospondin (TSP) inhibits it (Lugano 2020). TSP exerts its anti-angiogenic effects by either binding to VEGF directly, or by binding to heparin sulfates (Gupta 1999), which means that TSP largely exerts its anti-angiogenic effects via its heparin-binding domain. Heparin binding domains have a substantial amount of basic residues, such as lysine, arginine, and histidine (Munoz 2004). While VEGF has a heparin binding domain as well, only about 35% of mitogenic activity is due to this region, leaving the other 65% of angiogenic activity unaccounted for (Gupta 1999).
+
+My scientific question is: Does VEGF's non-heparin binding site for pro-angiogenic activity exhibit similar nucleotide sequences, amino acid residues, acidic/basic properties to the thrombospondin's heparin binding domain, given that these proteins exerts different effects on the same mechanism? Do the overall structures exhibit such similarity?
+
+Hypothesis: If VEGF exerts most of its angiogenic activity by its non-heparin binding domain, then this domain will have differing sequences and properties in terms of acidity and basicity when compared to TSP's heparin domain because these two proteins exert opposite effects on angiogenesis. Likewise, if these molecules exert opposite effects on the same mechanism, then their overall structures will differ greatly despite the fact that they should have conserved heparin binding domains.
+
+
+I used the NCBI nucleotide database to pull nucleotide sequences for VEGF and thrombospondin. Then, I went to the RCSB Protein Data Bank to obtain PDB files of VEGF and TSP bound with heparin. I chose to use the TSP bound with heparin file because it can be used to identify the heparin-binding site amino acid sequence. The heparin binding site can be verified by checking for the presence of basic amino acid residues (Munoz 2004). 
+
+I used pairwise sequence alignment and sequence logos to analyze the fasta files. I then used pairwise sequence alignment, structural bioinformatics (binding.site), sequence logos, PCA analysis, and 3D protein measurements (struct.aln) to analyze the PDB files.
+
+
+I will use pairwise sequence alignment on fasta files to view the conserved domains as well as the pairwise alignment scores. High pairwise alignment scores indicate a better alignment. Next, I used the PDB database to pull the amino acid sequences of thrombospondin and VEGF. I can identify the binding sites with the Bio3D binding.site function. I checked to ensure that thrombospondin's heparin binding sequence had basic amino acid residues. Then, I aligned these binding sites using pairwise sequence alignment. If I manage to identify a region of nucleotides/amino acids in VEGF that are similar to the heparin-binding domain on TSP, this would not support my hypothesis because similar amino acid sequences will have similar properties in terms of acidity and basicity.
+
+For my first analysis method, I used sequence logos on the fasta and PDB files. Sequence logos are graphical representations of conserved nucleotides, so I will compare the VEGF and TSP nucleotide sequences to see any conserved sequences appear to look like the heparin binding domain on TSP. If I do find that the VEGF binding domain is similar to that of TSP heparin, this would not support my hypothesis. For my second analysis method, I used 3D protein measurements (struct.aln function) to look for structural similarities and obtain statistical calculations on the similarity of the structures. I also used RMSD to quantify structural differences between the coordinate sets. Finally, I used principle component analysis to see if there were similarities in the protein structures that are similar and can be reduced via dimensionality reduction.
+
+
+In this first chunk, I will load all necessary packages, as defined here:
+
+BioConductor: this is a very large statistical analysis and graphing tool used to analyze genomic data.
+
+Biostrings: Allows for manipulation of biological sequences
+
+SeqinR: allows for data visualization and analysis on biological sequences from different databases, like NCBI and GenBank.
+
+Bio3D: allows for 3D analyses, protein visualization, and protein comparisons. This was developed by Barry Grant at UCSD.
+
+muscle: performs multiple sequence alignments of nucleotides or amino acid sequences.
+
+MSA: unifies different multiple sequence alignment methods like ClustalW, ClustalOmega, and muscle. 
+
+ggseqlogo: allows for the production of sequence logos
+
+ggplot2: this is not a package, but it is needed for ggseqlogo to create and launch graphics.
+
+
+Chunk 1: Loading the Packages
+BioConductor, BioStrings, bio3d, muscle, and ggseqlogo require installation. Other than these, all other packages are loaded as normal.
+```{r}
+#if (!require("BiocManager", quietly = TRUE))
+ #  install.packages("BiocManager")
+#BiocManager::install(version = "3.14")
+#install.packages("Biostrings")
+library(Biostrings)
+library(seqinr)
+
+#install.packages("bio3d", dependencies=TRUE)
+library(bio3d)
+BiocManager::install("muscle")
+library(muscle)
+library(msa)
+
+#install.packages("ggseqlogo")
+library(ggseqlogo)
+require(ggplot2)
+require(ggseqlogo)
+
+
+```
+
+CHUNK 2: pairwise sequence alignment with fasta files
+
+In this chunk, VEGF and TSP fasta files are read in and converted to DNA as well as amino acids. These are used in a pairwise sequence alignment, which is a bioinformatics method that identifies and aligns similar regions that may be due to evolutionary relationships. It reads in fasta files as well as amino acid sequences - I utilized both. This method is used to visualize similarities in the entire sequences.
+
+```{r}
+
+#vegf_DNA, vegf_AA, and tsp_AA, and tsp_DNA are all global variables. 
+
+#reading in fasta files and converting to DNA
+vegf_DNA <- readDNAStringSet("/Users/shelleymitra/Desktop/bimm 143/vegf.fasta")
+vegf_DNA
+tsp_DNA <- readDNAStringSet("/Users/shelleymitra/Desktop/bimm 143/tsp.fasta")
+
+#code check to check the number of nucleotides
+nchar(vegf_DNA)
+nchar(tsp_DNA)
+
+#translating to amino acids
+
+#must unload sequinr because both biostrings and sequinr have overlapping functions
+
+unloadNamespace("seqinr")
+
+vegf_AA <- translate(vegf_DNA)
+tsp_AA <- translate(tsp_DNA)
+#code checks
+vegf_AA
+tsp_AA
+
+#pairwise sequence alignments - one for DNA and one for amino acids
+pairwiseAlignment(vegf_DNA, tsp_DNA)
+pairwiseAlignment(vegf_AA,tsp_AA)
+
+```
+
+
+
+
+CHUNK 3: Pairwise sequence alignment, 3D protein measurements, structural bioinformatics with PDB files
+
+In this chunk, PDB files of VEGF and heparin bound-TSP are read in. 3D protein measurements was performed on the original PDB files using struct.aln. This method analyzed the x, y, and z coordinates of each structure and aligns them in order to structurally compare it. We will also use binding.site, which is a structural bioinformatics method, to identify the binding sites of each. We should get a VEGF binding site and a heparin binding site. Then, we will perform another pairwise sequence alignment on just the binding sites. This is a bioinformatics method that identifies and aligns similar regions that may be due to evolutionary relationships.This is meant to see if there are any similarities in the binding sites specifically.
+
+.
+```{r}
+#all variables defined here (vegf_pdb, vegf_bs, vegf_bs_AA, tsp_heparin_pdb, tsp_heparin_bs, tsp_heparin_bs_AA) are global variables as they are not nested in a loop
+
+#vegf binding site
+vegf_pdb <- read.pdb("/Users/shelleymitra/Desktop/bimm 143/vegfhuman.pdb")
+vegf_bs <- binding.site(vegf_pdb)
+vegf_bs_AA <- vegf_bs$resnames
+
+#code check to visualize the vegf binding site
+vegf_bs_AA
+
+#TSP complexed with heparin binding site
+tsp_heparin_pdb <- read.pdb("/Users/shelleymitra/Desktop/bimm 143/tsp_heparin.pdb")
+tsp_heparin_bs <- binding.site(tsp_heparin_pdb)
+tsp_heparin_bs_AA <- tsp_heparin_bs$resnames
+
+#code check for tsp heparin binding site sequence
+tsp_heparin_bs_AA
+
+
+#3D protein measurements with struct.aln
+struct.aln(vegf_pdb, tsp_heparin_pdb, exefile='msa')
+
+
+
+#making a pairwise alignment just for the binding sites!
+pairwiseAlignment(toString(vegf_bs_AA), toString(tsp_heparin_bs_AA))
+
+```
+
+
+
+
+CHUNK 4: Sequence Logos with PDBs and fasta files
+
+In this chunk, the VEGF and TSP fasta files were converted to a character vector. Then, the ggseqlogo function was utilized to visualize similar nucleotides with a sequence logos. Sequence logos are graphical representations of conserved nucleotides or amino acids. This fasta file was much too large for a readable sequence logo, so I created a function (shorten_fasta) to take only the first 100 nucleotides. Then GGseqlogo is applied to this so the sequence logo is only based on the first 100 nucleotides. The ggseqlogo function is also applied to the amino acids of the binding sites of vegf and tsp heparin, to see if there are much sequence similarities in binding sites.
+
+
+```{r}
+#In this chunk, vegf_DNA_character, tsp_DNA_character, vegf_DNA_character1, tsp_DNA_character1, shortened_vegf, and shortened_tsp are global variables. Emptyvector and num are local variables because they are only defined within a function/loop.
+
+#turned fasta files into character vectors for ggseqlogo
+vegf_DNA_character <- as.character(vegf_DNA)
+tsp_DNA_character <- as.character(tsp_DNA)
+
+
+#trying out the sequence logo, but it is too noisy
+ggseqlogo(vegf_DNA_character, tsp_DNA_character)
+
+
+#splitting the DNA so it can be indexed
+vegf_DNA_character1 <- strsplit(vegf_DNA_character, split="")
+tsp_DNA_character1 <- strsplit(tsp_DNA_character, split="")
+
+#code check to ensure that strsplit function worked
+vegf_DNA_character1[[1]][50]
+
+#creating a function to shorted the DNA files to just 100 nucleotides.
+shorten_fasta <- function(x) {
+  num <- c(1:100)
+  emptyvector <- c()
+for (i in num){
+  emptyvector <- append(emptyvector, x[[length(x)]][i])
+}
+  return (emptyvector)
+}
+
+#code check to make sure shorten_fasta works
+shortened_vegf <- shorten_fasta(vegf_DNA_character1)
+shortened_vegf 
+
+shortened_tsp <- shorten_fasta(tsp_DNA_character1)
+shortened_tsp
+
+#Sequence logo on the shortened fasta files
+ggseqlogo(shortened_vegf, shortened_tsp)
+
+
+#I want to be able to convert the binding site amino acids (uncovered from the pdb) into DNA nucleotides, and use sequence logos to compare just the binding sites.
+
+
+#sequence logo on just the binding sites!
+ggseqlogo(vegf_bs_AA, tsp_heparin_bs_AA)
+
+```
+
+CHUNK 5: RMSD and PCA with PDB files
+
+In this chunk, an RMSD analysis were performed on the original PDB files. RMSD is a structural bioinformatics approach intended to measure structural differences between coordinate sets. This is important because low RMSD numbers (below 2 Angstrom) indicate a high amount of similarity between overall structures, whereas high RMSDs indicate a greater difference in overall structures.
+
+I also tried out a principle component analysis on the PDB files, with the hope of some useful results. Principle component analysis is a statistical computation that aims to reduce the dimensionality of a larger dataset into digestible groups, or "principle components".
+
+
+Structural Bioinformatics (RMSD) and PCA
+```{r}
+#In this chunk, files, pdbs, pc, modes_tsp and modes_vegf are global variables as they are not defined within a loop.
+
+#extracting and aligning the PDB files 
+files <- c("/Users/shelleymitra/Desktop/bimm 143/tsp_heparin.pdb", "/Users/shelleymitra/Desktop/bimm 143/vegfhuman.pdb")
+
+pdbs <- pdbaln(files, exefile='msa')
+
+## Calculate RMSD
+rmsd(pdbs, fit=TRUE)
+
+#PCA
+pc <- pca(pdbfit(pdbs), rm.gaps=TRUE)
+plot(pc)
+
+
+```
+
+Analysis of Results:
+
+The pairwise alignment of nucleotide sequences has a score of -1836.704 while that of amino acid residues has a score of -1006.477. There are very low scores, so VEGF and TSP structures have little to no significant conserved domains or binding sites. The pairwise sequence alignment of just the binding sites gave a score of -178.4853, which is still indicates poor domain conservation. The sequence logo for the amino acids of the binding site show low levels of conservation as well. The sequence logo for the first 100 nucleotides appears to show some conservation across four bases, but this isn't enough to deem this a conserved sequence.
+
+7 out of 22 of the residues in the TSP heparin domain were basic, while only 2 out of 18 residues in the VEGF non-heparin binding domain were basic. We can conclude that VEGF's binding site does not contain the basic residues characteristic of the heparin binding domain.
+
+When looking at the output of the struct.aln function, we see that the indices of the structures have very different values. The VEGF indices start around 200 while the TSP indices started around 600. There is no point in which similar values are present in similar locations. The alignment values started at -34, which is very low and indicated that these structures did not align well. RMSD scores under 2 angstrom are considered to be a good score that relays high structural similarity. The RMSD between these two structures was 26.482, which indicates a poor alignment and low structural similarity.
+
+Finally, looking at the PCA plots, we see that there are two dots on opposite sides of the plane. This indicates a high amount of dissimilarity between the 2 structures.
+
+Based on all of these results, my hypothesis that there will be low similarity between TSP’s heparin binding domain and VEGF’s general binding domain was supported. My second hypothesis that there would be no similarity between structures was also verified. Besides the fact that there was virtually no structural similarity between these two molecules, the VEGF binding site did not have the basic residues characteristic of heparin-binding sites. So, even though heparin binding sites can promote angiogenesis, the basic structure representative of heparin binding sites are not necessary for angiogenesis.
